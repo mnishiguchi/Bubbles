@@ -27,7 +27,7 @@ import android.widget.RelativeLayout;
 
 public class BubbleActivity extends Activity
 {
-	private static final String TAG = "Lab-Graphics";
+	private static final String TAG = "Bubble";
 	
 	// These variables are for testing purposes, do not modify
 	private final static int RANDOM = 0;
@@ -87,7 +87,7 @@ public class BubbleActivity extends Activity
 
 		mAudioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
 
-		// Current volume / Max volume(0.0 .. 1.0)
+		// Current volume / Max volume (0f..1f)
 		mStreamVolume = (float) 
 				mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
 				/ mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
@@ -136,7 +136,7 @@ public class BubbleActivity extends Activity
 	{
 		Log.i(TAG, ":entered setupGestureDetector()");
 		
-		mGestureDetector = new GestureDetector(this.getApplicationContext(),
+		mGestureDetector = new GestureDetector(this,
 			new GestureDetector.SimpleOnGestureListener() {
 
 			// If a fling gesture starts on a BubbleView
@@ -149,17 +149,16 @@ public class BubbleActivity extends Activity
 					float velocityX, float velocityY)
 			{
 				Log.i(TAG, ":entered onFling()");
-				// TODO - Implement onFling actions.
-				// You can get all Views in mFrame one at a time
-				// using the ViewGroup.getChildAt() method
 
+				// Iterate over all Views in the frame.
 				// Check if the first down motion intersects a bubble.
 				BubbleView flingedBubble;
 				for (int i = 0, size = mFrame.getChildCount();
 						i < size; i++)
 				{
 					flingedBubble = (BubbleView)mFrame.getChildAt(i);
-					if (flingedBubble.intersects(e1.getX(), e1.getY()))
+					if (flingedBubble.intersects(e1.getX(), e1.getY())
+							|| flingedBubble.intersects(e2.getX(), e2.getY()))
 					{
 						// Change the Bubble's speed and direction.
 						flingedBubble.deflect(velocityX, velocityY);
@@ -168,39 +167,47 @@ public class BubbleActivity extends Activity
 				return true; // The motion event was consumed.
 			}
 
-			// If a single tap intersects a BubbleView, then pop the BubbleView
-			// Otherwise, create a new BubbleView at the tap's location and add
-			// it to mFrame. You can get all views from mFrame with
-			// ViewGroup.getChildAt()
-
+			// If a single tap intersects a BubbleView, then pop the BubbleView.
+			// Otherwise, create a new BubbleView at the tap's location and
+			// add it to mFrame. 
 			@Override
 			public boolean onSingleTapConfirmed(MotionEvent event)
 			{
 				Log.i(TAG, ":entered onSingleTapConfirmed()");
 				
-				// Check if the tap intersects any bubble. (One at a time)
-				BubbleView tappedBubble;
+				boolean isTappedBubble = false;
+				BubbleView bubble = null;
+				
+				// Iterate over all Views in the frame.
 				for (int i = 0, size = mFrame.getChildCount();
 						i < size; i++)
 				{
-					tappedBubble = (BubbleView) mFrame.getChildAt(i);
-					
-					if (tappedBubble.intersects(event.getX(),event.getY()))
+					// Check if the tap intersects any bubble.
+					bubble = (BubbleView) mFrame.getChildAt(i);	
+					if (bubble.intersects(event.getX(),event.getY()))
 					{
-						tappedBubble.stopMovement(true);
+						isTappedBubble = true;
 						break;
 					}
 				}
 				
-				// Create a new babble.
-				BubbleView newBubble = new BubbleView(BubbleActivity.this,
-						event.getX(),event.getY());
-				
-				// Add it to the frame.
-				mFrame.addView(newBubble);
-				
-				// Make it start moving.
-				newBubble.startMovement();
+				Log.i(TAG, "isTappedBubble: " + isTappedBubble);
+				if (isTappedBubble)
+				{
+					bubble.stopMovement(true);
+				}
+				else
+				{
+					// Create a new babble.
+					BubbleView newBubble = new BubbleView(BubbleActivity.this,
+							event.getX(),event.getY());
+					
+					// Add it to the frame.
+					mFrame.addView(newBubble);
+					
+					// Make it start moving.
+					newBubble.startMovement();
+				}
 
 				return true; // The motion event was consumed.
 			}
@@ -273,15 +280,14 @@ public class BubbleActivity extends Activity
 			mRadius = mScaledBitmapWidth / 2;
 			mRadiusSquared = mRadius * mRadius;
 			
-			// Adjust position to center the bubble under user's finger
-			// (rather than the top-left corner of the image)
+			// Adjust position to center the bubble under user's finger.
 			mXPos = x - mRadius;
 			mYPos = y - mRadius;
 
-			// Set the BubbleView's speed and direction
+			// Set the BubbleView's initial speed and direction
 			setSpeedAndDirection(r);
 
-			// Set the BubbleView's rotation
+			// Set the BubbleView's initial rotation
 			setRotation(r);
 
 			mPainter.setAntiAlias(true);
@@ -370,6 +376,7 @@ public class BubbleActivity extends Activity
 		private void startMovement()
 		{
 			Log.i(TAG, ":entered startMovement()");
+			
 			// Creates a WorkerThread
 			ScheduledExecutorService executor = 
 					Executors.newScheduledThreadPool(1);
@@ -386,12 +393,12 @@ public class BubbleActivity extends Activity
 					if (moveWhileOnScreen()) // Still on the display.
 					{
 						// Request that the BubbleView be redrawn.
-						postInvalidateDelayed(BubbleView.REFRESH_RATE);
+						BubbleView.this.postInvalidate();
 					}
 					else // the BubbleView exits the display.
 					{
 						// Stop the BubbleView's Worker Thread.
-						stopMovement(true);
+						BubbleView.this.stopMovement(false);
 					}
 				}
 			}, 0, REFRESH_RATE, TimeUnit.MILLISECONDS);
@@ -403,15 +410,17 @@ public class BubbleActivity extends Activity
 		 * @param y the y coordinate of the BubbleView's origin.
 		 * @return true if the BubbleView intersects position (x,y)
 		 */
-		private synchronized boolean intersects(float x, float y)
+		private synchronized boolean intersects(float xTouch, float yTouch)
 		{
 			Log.i(TAG, ":entered intersects()");
 			
-			boolean intersectsX = (mXPos - mRadius <= x) || (x <= mXPos + mRadius);
-			boolean intersectsY = (mYPos - mRadius <= y) || (y <= mYPos + mRadius);
-			
-			Log.i(TAG, ":intersects():"+String.valueOf(intersectsX && intersectsY));
-			return intersectsX && intersectsY;
+			// (x - center_x)^2 + (y - center_y)^2 < radius^2.
+			//return (xTouch - mXPos) * (xTouch - mXPos)
+					//+ (yTouch - mYPos) * (yTouch - mYPos)
+					//<= mRadiusSquared * 2;
+			boolean isInRangeX = mXPos < xTouch && xTouch < mXPos + mScaledBitmapWidth;
+			boolean isInRangeY = mYPos < yTouch && yTouch < mYPos + mScaledBitmapWidth;
+			return isInRangeX && isInRangeY;
 		}
 
 		/**
@@ -480,14 +489,14 @@ public class BubbleActivity extends Activity
 			canvas.rotate(mRotate, mXPos, mYPos);
 
 			// Draw the bitmap at it's new location on the canvas.
-			canvas.drawBitmap(mScaledBitmap,
-					mXPos + mRadius, mYPos + mRadius, mPainter);
+			canvas.drawBitmap(mScaledBitmap, mXPos, mYPos, mPainter);
 
 			// restore the canvas
 			canvas.restore();
 		}
 		
 		/**
+		 * Move the BubbleView (setting speed and direction).
 		 * Returns true if the BubbleView is still on the screen
 		 * after the move operation
 		 */
@@ -495,19 +504,19 @@ public class BubbleActivity extends Activity
 		{
 			Log.i(TAG, ":entered moveWhileOnScreen()");
 			
-			// TODO - Move the BubbleView
+			// Move the BubbleView
 			// set speed and direction
 			mXPos += mDx;
 			mYPos += mDy;
 			
-			return isOutOfView();
+			return isInsideFrame();
 		}
 
 		/**
 		 * Return true if the BubbleView is still on the screen
 		 * after the move operation
 		 */
-		private boolean isOutOfView()
+		private boolean isInsideFrame()
 		{
 			boolean isOutTop = this.mYPos < (0 - mRadius);
 			boolean isOutLeft = this.mXPos < (0 - mRadius);
