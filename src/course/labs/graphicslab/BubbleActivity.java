@@ -28,6 +28,7 @@ import android.widget.RelativeLayout;
 public class BubbleActivity extends Activity
 {
 	private static final String TAG = "Bubble";
+	private static final float TAP_SENSITIVITY = 5.0f;
 	
 	// These variables are for testing purposes, do not modify
 	private final static int RANDOM = 0;
@@ -199,7 +200,7 @@ public class BubbleActivity extends Activity
 				else
 				{
 					// Create a new babble.
-					BubbleView newBubble = new BubbleView(BubbleActivity.this,
+					BubbleView newBubble = new BubbleView(getApplicationContext(),
 							event.getX(),event.getY());
 					
 					// Add it to the frame.
@@ -257,10 +258,13 @@ public class BubbleActivity extends Activity
 		private int mScaledBitmapWidth;
 		private Bitmap mScaledBitmap;
 
-		// location, speed and direction of the bubble
-		private float mXPos, mYPos, mDx, mDy, mRadius, mRadiusSquared;
-		private long mRotate, mDRotate;
-
+		// Bubble's state attributes.
+		private float mXPos, mYPos; // Origin of the bubble.
+		private float mDx, mDy; // Speed & direction.
+		private float mRadius; // To adjust bitmap position.
+		private float mRadiusSquared; // To calculate distance.
+		private long mRotate; // Current rotating position (in degree).
+		private long mDRotate; // Rotating rate (in degree).
 		
 		/**
 		 * Constructor.
@@ -363,7 +367,7 @@ public class BubbleActivity extends Activity
 
 			// Create the scaled bitmap using size set above.
 			mScaledBitmap = Bitmap.createScaledBitmap(mBitmap,
-					mScaledBitmapWidth, mScaledBitmapWidth, true);
+					mScaledBitmapWidth, mScaledBitmapWidth, false);
 		}
 
 		/**
@@ -390,7 +394,7 @@ public class BubbleActivity extends Activity
 				{
 					Log.i(TAG, ":entered run()");
 
-					if (moveWhileOnScreen()) // Still on the display.
+					if (BubbleView.this.moveWhileOnScreen()) // Still on the display.
 					{
 						// Request that the BubbleView be redrawn.
 						BubbleView.this.postInvalidate();
@@ -405,22 +409,18 @@ public class BubbleActivity extends Activity
 		}
 
 		/**
-		 * Returns true if the BubbleView intersects position (x,y)
+		 * Check if a given point (x ,y) is within the boundary of the BubbleView.
 		 * @param x the x coordinate of the BubbleView's origin.
 		 * @param y the y coordinate of the BubbleView's origin.
-		 * @return true if the BubbleView intersects position (x,y)
+		 * @return true if the BubbleView intersects the point (x,y)
 		 */
-		private synchronized boolean intersects(float xTouch, float yTouch)
+		private synchronized boolean intersects(float x, float y)
 		{
 			Log.i(TAG, ":entered intersects()");
-			
-			// (x - center_x)^2 + (y - center_y)^2 < radius^2.
-			//return (xTouch - mXPos) * (xTouch - mXPos)
-					//+ (yTouch - mYPos) * (yTouch - mYPos)
-					//<= mRadiusSquared * 2;
-			boolean isInRangeX = mXPos < xTouch && xTouch < mXPos + mScaledBitmapWidth;
-			boolean isInRangeY = mYPos < yTouch && yTouch < mYPos + mScaledBitmapWidth;
-			return isInRangeX && isInRangeY;
+			// If a point(x, y) is within a circle(ox, oy), it must satisfy:
+			// (x - ox)^2 + (y - oy)^2 < radius^2.
+			return (x - mXPos) * (x - mXPos) + (y - mYPos) * (y - mYPos)
+					<= mRadiusSquared * TAP_SENSITIVITY;
 		}
 
 		/**
@@ -484,9 +484,8 @@ public class BubbleActivity extends Activity
 			// Increase the rotation of the original image by mDRotate
 			mRotate += mDRotate;
 
-			// Rotate the canvas by current rotation
-			// (Rotate around the bubble's center)
-			canvas.rotate(mRotate, mXPos, mYPos);
+			// Rotate the canvas by current rotation.
+			canvas.rotate(mRotate, mXPos + mRadius, mYPos + mRadius);
 
 			// Draw the bitmap at it's new location on the canvas.
 			canvas.drawBitmap(mScaledBitmap, mXPos, mYPos, mPainter);
