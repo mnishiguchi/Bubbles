@@ -501,13 +501,13 @@ public class BubbleActivity extends Activity
 			// set speed and direction
 			mXPos += mDx;
 			mYPos += mDy;
+			bounceOnWall();
 			
 			return isOnScreen();
 		}
 
 		/**
-		 * Return true if the BubbleView is still on the screen
-		 * after the move operation
+		 * Return true if the BubbleView is still on the screen.
 		 */
 		private boolean isOnScreen()
 		{
@@ -524,6 +524,28 @@ public class BubbleActivity extends Activity
 			{
 				return true;  // Inside the frame.
 			}
+		}
+		
+		/**
+		 * Bounce off when hitting the walls or ceiling.
+		 */
+		private synchronized void bounceOnWall()
+		{
+			// bounce off top edge of window
+			if (mYPos <= 0)
+			{
+				mDy = -mDy;
+			}
+			// bounce off left edge of window
+			else if (mXPos <= 0)
+			{
+				mDx = -mDx;
+			}
+			// bounce off right edge of window
+			else if (mXPos + (2 * mRadius) >= mDisplayWidth)
+			{
+				mDx = -mDx;
+			} 
 		}
 	}
 

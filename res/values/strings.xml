@@ -4,5 +4,6 @@
     <string name="still_mode_string">Still Mode</string>
     <string name="single_speed_mode_string">Single Speed Mode</string>
     <string name="random_speed_mode_string">Random Speed Mode</string>
+    <string name="bounce_mode_string">Bounce Mode</string>
     <string name="quit_string">Quit</string>
 </resources>
