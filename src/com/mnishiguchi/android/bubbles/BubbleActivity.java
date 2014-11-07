@@ -23,13 +23,11 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.RelativeLayout;
-import com.mnishiguchi.android.bubbles.R;
 
 public class BubbleActivity extends Activity
 {
 	private static final String TAG = "Bubble";
 	
-	// These variables are for testing purposes, do not modify
 	private final static int RANDOM = 0;
 	private final static int SINGLE = 1;
 	private final static int STILL = 2;
@@ -495,12 +493,11 @@ public class BubbleActivity extends Activity
 		 */
 		private synchronized boolean moveThenIsStillOnScreen()
 		{
-			Log.i(TAG, ":entered moveWhileOnScreen()");
-			
 			// Move the BubbleView
 			// set speed and direction
 			mXPos += mDx;
 			mYPos += mDy;
+			
 			bounceOnWall();
 			
 			return isOnScreen();
